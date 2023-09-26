@@ -1,0 +1,45 @@
+# ansible-lxd
+
+# Steps performed:
+# - Connect to specified LXD host and ensure LXD is installed and set up
+# - Ensure all containers on this host exists as configured
+# - For each container configured for this host:
+#   - Ensure configured packages are installed
+#   - Perform additional configuration step if necessary
+# - Ensure host nginx config is up to date
+
+
+---
+# begin by creating local files from defined data:
+# - containers.yml containing data from the host inventory of objects
+#   classified as containers if applicable
+# - 
+- name: "Create initial files locally"
+  hosts: localhost
+  roles: ['localhost']
+
+- name: "Set up lxd_hosts"
+  hosts: "lxd_hosts"
+  become: true
+  vars:
+    osrelease: "{{ ansible_facts['distribution_release'] }}"
+  roles: ['lxd_host']
+
+#- name: "Set up etherpad_containers"
+#  hosts: "etherpad_containers"
+#  become: true
+#  roles:
+#    - etherpad_container
+
+# Skipped
+#- name: "Set up prometheus"
+#  hosts: "prometheus_containers"
+#  roles:
+#    - prometheus
+
+#- name: "Set up nginx forwarding for lxd"
+#  become: true
+#  hosts: "lxd_hosts"
+#  roles:
+#    - lxd_host_nginx_forwarder
+#

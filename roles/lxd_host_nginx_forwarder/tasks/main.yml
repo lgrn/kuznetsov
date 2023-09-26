@@ -1,0 +1,57 @@
+- name: "Install nginx"
+  ansible.builtin.apt:
+    name:
+      - "nginx"
+      - "nginx-common"
+      - "nginx-core"
+- name: "Remove default nginx site config"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: "absent"
+  with_items:
+    - "/etc/nginx/sites-enabled/default"
+    - "/etc/nginx/sites-available/default"
+- name: "Create cert dir"
+  ansible.builtin.file:
+    path: "/etc/nginx/ssl"
+    state: "directory"
+    owner: "root"
+    group: "root"
+    mode: "0500"
+- name: "Place fullchain into tls.crt"
+  ansible.builtin.copy:
+    content: "{{ infra_chain }}"
+    dest: "/etc/nginx/ssl/tls.crt"
+    owner: "root"
+    group: "root"
+    mode: "0444"
+- name: "Place key into tls.key"
+  ansible.builtin.copy:
+    content: "{{ infra_key }}"
+    dest: "/etc/nginx/ssl/tls.key"
+    owner: "root"
+    group: "root"
+    mode: "0400"
+- name: "Place lxd_forwarder nginx config"
+  ansible.builtin.template:
+    src: "lxd_forwarder.j2"
+    dest: "/etc/nginx/sites-available/lxd_forwarder"
+    owner: "root"
+    group: "root"
+    mode: "0400"
+  register: "forwarder_nginx_conf"
+- name: "Activate lxd_forwarder nginx config"
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/lxd_forwarder"
+    dest: "/etc/nginx/sites-enabled/lxd_forwarder"
+    state: "link"
+- name: "Verify nginx config"
+  ansible.builtin.command: "/usr/sbin/nginx -t"
+  register: "nginx_config_ok"
+  failed_when: "nginx_config_ok.rc != 0"
+  changed_when: false
+- name: "Config OK: Restart nginx"
+  ansible.builtin.service:
+    name: "nginx"
+    state: "restarted"
+  when: "nginx_config_ok.rc == 0 and forwarder_nginx_conf.changed"

@@ -1,0 +1,15 @@
+# Generated cloud-config and network-config for each container, based on
+# information available in hosts.yml
+
+{% for container in groups['lxd_containers'] %}
+{% set i = hostvars[container] %}
+cloud_config:
+  {{ container }}:
+    present: {{ i['lxd_present'] }}
+    absent: {{ i['lxd_absent'] }}
+    alias: "{{ i['lxd_alias'] }}"
+    ip: "{{ i['lxd_ip'] }}"
+    config: {{ i['lxd_config'] | to_json }}
+    profiles: {{ i['lxd_profiles'] }}
+
+{% endfor %}

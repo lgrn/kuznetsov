@@ -1,0 +1,45 @@
+# start of lxd_forwarder template: this file contains configuration for any
+# container in the 'nginx_receivers' group in 'hosts' (inventory)
+{% for c in groups['nginx_receivers'] %}
+{% set i = hostvars[c] %}
+
+#
+# container: '{{ c }}' ({{ i['server_name'] }})
+#
+
+server {
+    listen              443 ssl;
+    server_name         {{ i['server_name'] }};
+    keepalive_timeout   70;
+    ssl_certificate     /etc/nginx/ssl/tls.crt;
+    ssl_certificate_key /etc/nginx/ssl/tls.key;
+    ssl_protocols       TLSv1.2;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    access_log          /var/log/nginx/{{ c }}.access.log;
+    error_log           /var/log/nginx/{{ c }}.error.log;
+
+        location / {
+            proxy_pass http://{{ i['lxd_ip'] }}:{{ i['to_port'] }};
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-Host $host;
+            proxy_set_header X-Forwarded-Port $server_port;
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_http_version 1.1;
+            proxy_set_header Host $http_host;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "Upgrade";
+            proxy_cache off;
+        }
+
+}
+server {
+    listen      80;
+    server_name {{ i['server_name'] }};
+    return 301  https://$host$request_uri;
+}
+{% else %}
+
+# DEBUG: {{ c }} has no 'nginx_receiver' set, skipping.
+
+{% endfor %}

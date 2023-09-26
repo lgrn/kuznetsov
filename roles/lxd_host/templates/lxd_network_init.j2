@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# this script creates a 'forward' and imports defined port-forwards.
+
+# IMPORTANT NOTES
+# - this uses 'ext_ip' set on the LXD host (file: 'hosts')
+
+# create the initial forward, listening on 'ext_ip'
+# this will fail if it already exists, that's fine
+lxc network forward create lxdbr0 {{ ext_ip }}
+# import forward.yml as authoritative port forwarding definition
+lxc network forward edit lxdbr0 {{ ext_ip }} < /tmp/forward.yml
+
+# to show current runtime configuration, run:
+# lxc network forward show lxdbr0 {{ ext_ip }}
