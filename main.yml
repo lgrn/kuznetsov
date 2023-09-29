@@ -1,28 +1,25 @@
-# ansible-lxd
-
-# Steps performed:
-# - Connect to specified LXD host and ensure LXD is installed and set up
-# - Ensure all containers on this host exists as configured
-# - For each container configured for this host:
-#   - Ensure configured packages are installed
-#   - Perform additional configuration step if necessary
-# - Ensure host nginx config is up to date
-
-
 ---
-# begin by creating local files from defined data:
-# - containers.yml containing data from the host inventory of objects
-#   classified as containers if applicable
-# - 
+# begin by creating local files:
+#
+# - cloudconfig.yml containing user-data and network-config for *all*
+#   containers, passed in upon creation
+#
+# - ssh_config loaded by ansible to understand how to reach all nodes
+#
+
 - name: "Create initial files locally"
   hosts: localhost
   roles: ['localhost']
 
-- name: "Set up lxd_hosts"
+# apply the 'lxd_host' role to group lxd_hosts. this ensures LXD is
+# installed and bootstrapped, and ensures all containers referring to
+# the host as 'parent' exist, and otherwise creates them
+
+- name: "Set up lxd_hosts and containers"
   hosts: "lxd_hosts"
   become: true
-  vars:
-    osrelease: "{{ ansible_facts['distribution_release'] }}"
+  vars_files:
+    - cloudconfig.yml
   roles: ['lxd_host']
 
 #- name: "Set up etherpad_containers"

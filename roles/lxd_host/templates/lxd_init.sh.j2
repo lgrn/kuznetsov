@@ -3,7 +3,7 @@
 # this script initializes lxd with the config below
 # doc: https://linuxcontainers.org/lxd/docs/latest/howto/initialize/
 
-# note that tank/lxd must exist
+# note that provided '{{ zfs_pool }}' must exist
 
 lxd init --preseed <<'EOF'
 config: {}
@@ -26,8 +26,8 @@ storage_pools:
 - name: lxd-pool
   driver: zfs
   config:
-    source: "tank/lxd"
-  description: "lxd zfs pool targeting tank/lxd"
+    source: "{{ zfs_pool }}"
+  description: "lxd zfs pool targeting {{ zfs_pool }}"
 profiles:
 - config:
     snapshots.schedule: ""

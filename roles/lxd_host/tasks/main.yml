@@ -5,12 +5,23 @@
 #    executable: /bin/bash
 #  register: "vdb_exists"
 #  changed_when: false
-## run assertions
-#- name: "Check assertions"
-#  ansible.builtin.assert:
-#    that:
-#      - "osrelease == 'jammy'"
-#      - "vdb_exists.rc == 0"
+
+# run assertions
+# - release must be jammy
+- name: "Check assertions"
+  ansible.builtin.assert:
+    that:
+      - "ansible_facts['distribution_release'] == 'jammy'"
+
+#- name: debug output
+#  debug:
+#    msg: "{{ cloud_config['pixelfed'] }}"
+#
+#- name: debug output
+#  debug:
+#    msg: "{{ groups['lxd_containers'] }}"
+
+# - meta: end_play
 
 # install necessary apt packages for lxd hosting
 - name: "Install APT packages on host"
@@ -22,7 +33,8 @@
 - name: "Install LXD as a snap"
   community.general.snap:
     name: "lxd"
-# place forward.yml to be used by lxd_network_init
+
+# place forward.yml remotely to be used by lxd_network_init
 #- name: "Place forward.yml"
 #  ansible.builtin.copy:
 #    src: "forward.yml"
@@ -30,7 +42,6 @@
 #    owner: "root"
 #    group: "root"
 #    mode: "0444"
-# generate containers.yml to be used by ansible
 
 
 
@@ -54,23 +65,23 @@
 #    file: "containers.yml"
 #    name: "containers"
 
-# place init-script for lxd
-- name: "Place lxd_init.sh on host"
-  ansible.builtin.copy:
-    src: lxd_init.sh
-    dest: /tmp/lxd_init.sh
-    owner: "root"
-    group: "root"
-    mode: "0500"
-
 - name: "Check if LXD is already initialized (storage pool exists)"
-  ansible.builtin.shell: "set -o pipefail && /snap/bin/lxc storage show lxd-pool | grep -q tank"
+  ansible.builtin.shell: "set -o pipefail && /snap/bin/lxc storage show lxd-pool | grep -q {{ zfs_pool }}"
   args:
     executable: /bin/bash
   # Can disqualify "Bootstrap" steps
   register: "lxd_initialized"
   changed_when: false
   ignore_errors: true
+
+- name: "Bootstrap: Place lxd_init.sh from template"
+  ansible.builtin.template:
+    src: "lxd_init.sh.j2"
+    dest: "/tmp/lxd_init.sh"
+    owner: "root"
+    group: "root"
+    mode: "0500"
+  when: "lxd_initialized.rc != 0"
 
 ## place init-script for lxd networking
 #- name: "Place lxd_network_init.sh on host"
@@ -90,7 +101,7 @@
 
 - name: "Loop: Create containers"
   register: "created_container"
-  with_items: "{{ groups['lxd_containers'].keys() | list }}"
+  with_items: "{{ groups['lxd_containers'] }}"
   community.general.lxd_container:
     name: "{{ item }}"
     state: "started"
@@ -102,17 +113,17 @@
       alias: "{{ hostvars[item]['alias'] }}"
     profiles: "{{ hostvars[item]['profiles'] }}"
     timeout: 600
-    config: "{{ cloudconfig[item] | to_json }}"
-  when: hostvars[item]['present'] and (inventory_hostname == hostvars[item]['parent'])
+    config: "{{ cloud_config[item] | to_json }}"
+  when: "(hostvars[item]['present']) and (inventory_hostname == hostvars[item]['parent'])"
 
 # wait for SSH to become available, cloud-init apt-get takes some time
-- name: Ensure sshd is running in container (expect <60 seconds)
+- name: Waiting for sshd in all containers (expect <60 seconds)
   ansible.builtin.command: "lxc exec {{ item }} -- systemctl is-active ssh"
-  with_items: "{{ groups['lxd_containers'].keys() | list }}"
+  with_items: "{{ groups['lxd_containers'] }}"
   register: ssh_running
   until: ssh_running.rc == 0
   retries: 60
   delay: 1
   failed_when: ssh_running.rc != 0
   changed_when: false
-  when: hostvars[item]['present']
+  when: "(hostvars[item]['present']) and (inventory_hostname == hostvars[item]['parent'])"
