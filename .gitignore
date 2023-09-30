@@ -1,0 +1,16 @@
+# venv
+.Python
+[Bb]in
+[Ii]nclude
+[Ll]ib
+[Ll]ib64
+[Ll]ocal
+[Ss]cripts
+__pycache__
+pyvenv.cfg
+.venv
+pip-selfcheck.json
+
+# generated files
+containers.yml
+ssh_config

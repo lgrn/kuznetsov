@@ -1,0 +1,129 @@
+## check that drive for storage pool exists
+#- name: "Verify /dev/vdb exists"
+#  ansible.builtin.shell: "set -o pipefail && lsblk | grep -q vdb"
+#  args:
+#    executable: /bin/bash
+#  register: "vdb_exists"
+#  changed_when: false
+
+# run assertions
+# - release must be jammy
+- name: "Check assertions"
+  ansible.builtin.assert:
+    that:
+      - "ansible_facts['distribution_release'] == 'jammy'"
+
+#- name: debug output
+#  debug:
+#    msg: "{{ cloud_config['pixelfed'] }}"
+#
+#- name: debug output
+#  debug:
+#    msg: "{{ groups['lxd_containers'] }}"
+
+# - meta: end_play
+
+# install necessary apt packages for lxd hosting
+- name: "Install APT packages on host"
+  ansible.builtin.apt:
+    name:
+      - "snapd"
+      - "zfsutils-linux"
+# install lxd
+- name: "Install LXD as a snap"
+  community.general.snap:
+    name: "lxd"
+
+# place forward.yml remotely to be used by lxd_network_init
+#- name: "Place forward.yml"
+#  ansible.builtin.copy:
+#    src: "forward.yml"
+#    dest: "/tmp/forward.yml"
+#    owner: "root"
+#    group: "root"
+#    mode: "0444"
+
+
+
+# include_vars can't take remote files, there has to be a better way
+# TODO this
+#- name: Grab remote file
+#  ansible.builtin.fetch:
+#    src: /tmp/containers.yml
+#    dest: /tmp/containers.yml
+#    flat: yes
+
+# load datasource: cloudconfig.yml
+- name: "Load generated cloudconfig.yml"
+  ansible.builtin.include_vars:
+    file: "cloudconfig.yml"
+    name: "cloudconfig"
+
+# load datasource: containers.yml 
+#- name: "Load generated containers.yml"
+#  ansible.builtin.include_vars:
+#    file: "containers.yml"
+#    name: "containers"
+
+- name: "Check if LXD is already initialized (storage pool exists)"
+  ansible.builtin.shell: "set -o pipefail && /snap/bin/lxc storage show lxd-pool | grep -q {{ zfs_pool }}"
+  args:
+    executable: /bin/bash
+  # Can disqualify "Bootstrap" steps
+  register: "lxd_initialized"
+  changed_when: false
+  ignore_errors: true
+
+- name: "Bootstrap: Place lxd_init.sh from template"
+  ansible.builtin.template:
+    src: "lxd_init.sh.j2"
+    dest: "/tmp/lxd_init.sh"
+    owner: "root"
+    group: "root"
+    mode: "0500"
+  when: "lxd_initialized.rc != 0"
+
+## place init-script for lxd networking
+#- name: "Place lxd_network_init.sh on host"
+#  ansible.builtin.template:
+#    src: lxd_network_init.j2
+#    dest: /tmp/lxd_network_init.sh
+#    owner: "root"
+#    group: "root"
+#    mode: "0500"
+# run init script
+
+- name: "Bootstrap: Automatic LXD initialization (lxd_init.sh)"
+  ansible.builtin.command: "/tmp/lxd_init.sh"
+  when: "lxd_initialized.rc != 0"
+  register: lxd_init_script
+  changed_when: lxd_init_script.rc == 0
+
+- name: "Loop: Create containers"
+  register: "created_container"
+  with_items: "{{ groups['lxd_containers'] }}"
+  community.general.lxd_container:
+    name: "{{ item }}"
+    state: "started"
+    source:
+      type: "image"
+      mode: "pull"
+      server: "https://images.linuxcontainers.org"
+      protocol: "simplestreams"
+      alias: "{{ hostvars[item]['alias'] }}"
+    profiles: "{{ hostvars[item]['profiles'] }}"
+    timeout: 600
+    config: "{{ cloud_config[item] | to_json }}"
+  when: "(hostvars[item]['present']) and (inventory_hostname == hostvars[item]['parent'])"
+
+# wait for SSH to become available, cloud-init apt-get takes some time
+- name: Waiting for sshd in all containers (expect <60 seconds)
+  ansible.builtin.command: "lxc exec {{ item }} -- systemctl is-active ssh"
+  with_items: "{{ groups['lxd_containers'] }}"
+  register: ssh_running
+  until: ssh_running.rc == 0
+  retries: 60
+  delay: 1
+  failed_when: ssh_running.rc != 0
+  changed_when: false
+  when: "(hostvars[item]['present']) and (inventory_hostname == hostvars[item]['parent'])"

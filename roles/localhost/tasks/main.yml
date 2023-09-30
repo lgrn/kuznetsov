@@ -1,0 +1,14 @@
+- name: "Generate cloud and network config"
+  ansible.builtin.template:
+    src: "cloudconfig.j2"
+    dest: "cloudconfig.yml"
+
+#- name: "Generate containers.yml"
+#  ansible.builtin.template:
+#    src: "containers.j2"
+#    dest: "containers.yml"
+
+- name: "Generate ssh_config"
+  ansible.builtin.template:
+    src: "ssh_config.j2"
+    dest: "ssh_config"
