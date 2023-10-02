@@ -12,5 +12,6 @@ pyvenv.cfg
 pip-selfcheck.json
 
 # generated files
-containers.yml
+cloudconfig.yml
+forward.yml
 ssh_config

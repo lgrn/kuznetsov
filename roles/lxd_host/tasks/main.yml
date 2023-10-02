@@ -83,16 +83,6 @@
     mode: "0500"
   when: "lxd_initialized.rc != 0"
 
-## place init-script for lxd networking
-#- name: "Place lxd_network_init.sh on host"
-#  ansible.builtin.template:
-#    src: lxd_network_init.j2
-#    dest: /tmp/lxd_network_init.sh
-#    owner: "root"
-#    group: "root"
-#    mode: "0500"
-# run init script
-
 - name: "Bootstrap: Automatic LXD initialization (lxd_init.sh)"
   ansible.builtin.command: "/tmp/lxd_init.sh"
   when: "lxd_initialized.rc != 0"
@@ -127,3 +117,28 @@
   failed_when: ssh_running.rc != 0
   changed_when: false
   when: "(hostvars[item]['present']) and (inventory_hostname == hostvars[item]['parent'])"
+
+- name: "Generate LXD network forwards"
+  ansible.builtin.template:
+    src: "forward.j2"
+    dest: "/tmp/forward.yml"
+    owner: "root"
+    group: "root"
+    mode: "0500"
+
+## place init-script for lxd networking
+- name: "Place lxd_forward.sh on host"
+  ansible.builtin.template:
+    src: lxd_forward.j2
+    dest: /tmp/lxd_forward.sh
+    owner: "root"
+    group: "root"
+    mode: "0500"
+  changed_when: false
+  register: place_forward_yml
+
+- name: "Execute lxd_forward.sh"
+  become: true
+  ansible.builtin.shell: "/tmp/lxd_forward.sh"
+  when: place_forward_yml.rc == 0
+  changed_when: false

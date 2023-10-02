@@ -1,0 +1,21 @@
+# generated LXD forwards for host {{ inventory_hostname }}
+# this file specifies port forwards from host -> container
+
+description: Ansible forwarding rules
+config: {}
+ports:
+{% for container in groups['lxd_containers'] %}
+{% set c = hostvars[container] %}
+{% if (c['parent'] == inventory_hostname) and (c['ports'] is defined) %}
+{% for port in c['ports'] %}
+- description: "service '{{ port['service'] }}' into container '{{ container }}'"
+  protocol: "{{ port['protocol'] }}"
+  listen_port: "{{ port['listen_port'] }}"
+  target_port: "{{ port['target_port'] }}"
+  target_address: "{{ c['ip'] | ansible.utils.ipaddr('address') }}"
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% set h = hostvars[inventory_hostname] %}
+listen_address: "{{ h['listen_ip'] }}"
+location: none
