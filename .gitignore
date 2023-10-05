@@ -15,3 +15,7 @@ pip-selfcheck.json
 cloudconfig.yml
 forward.yml
 ssh_config
+
+# encrypted secrets
+vault.yml
+password
