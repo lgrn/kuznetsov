@@ -1,0 +1,7 @@
+postgres_databases:
+  testdb:
+    user: testuser
+    pass: testpass
+  testdb2:
+    user: testuser2
+    pass: testpass2
