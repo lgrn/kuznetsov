@@ -1,0 +1,59 @@
+- name: "Postgres and pip is installed"
+  ansible.builtin.apt:
+    name:
+      - "postgresql"
+      - "postgresql-contrib"
+      - "python3-pip"
+
+- name: "Python dependencies installed"
+  ansible.builtin.pip:
+    name: "psycopg2-binary"
+    state: "present"
+
+- name: "Postgres service is started"
+  ansible.builtin.systemd:
+    state: started
+    enabled: true
+    name: postgresql
+
+- name: "Create databases (from vault)"
+  community.postgresql.postgresql_db:
+    state: present
+    name: "{{ item.key }}"
+  with_items: "{{ postgres_databases }}"
+  become: true
+  become_user: "postgres"
+  #register: postgresql_db
+  #no_log: "{{ postgres_databases is defined }}" # SENSITIVE!
+
+#- name: postgresql_db STDOUT
+#  ansible.builtin.debug:
+#    var: postgresql_db.stdout_lines
+
+- name: "Create users"
+  community.postgresql.postgresql_user:
+    state: present
+    name: "{{ item.value.user }}"
+    password: "{{ item.value.pass }}"
+  with_items: "{{ postgres_databases }}"
+  become: true
+  become_user: "postgres"
+
+- name: "Allow md5 connection"
+  community.postgresql.postgresql_pg_hba:
+    dest: "/etc/postgresql/14/main/pg_hba.conf"
+    contype: "host"
+    databases: "{{ item.key }}"
+    method: "md5"
+    users: "{{ item.value.user }}"
+    create: true
+  with_items: "{{ postgres_databases }}"
+  become: true
+  become_user: "postgres"
+  notify: "restart postgres"
+  #no_log: "{{ postgres_databases is defined }}" # SENSITIVE!
+  #register: postgresql_user
+
+#- name: postgresql_user STDOUT
+#  ansible.builtin.debug:
+#    var: postgresql_user.stdout_lines

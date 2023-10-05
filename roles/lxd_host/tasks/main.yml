@@ -105,6 +105,8 @@
     timeout: 600
     config: "{{ cloud_config[item] | to_json }}"
   when: "(hostvars[item]['present']) and (inventory_hostname == hostvars[item]['parent'])"
+  async: 60
+  poll: 15
 
 # wait for SSH to become available, cloud-init apt-get takes some time
 - name: Waiting for sshd in all containers (expect <60 seconds)
@@ -117,6 +119,8 @@
   failed_when: ssh_running.rc != 0
   changed_when: false
   when: "(hostvars[item]['present']) and (inventory_hostname == hostvars[item]['parent'])"
+  async: 60
+  poll: 15
 
 - name: "Generate LXD network forwards"
   ansible.builtin.template:
@@ -140,5 +144,5 @@
 - name: "Execute lxd_forward.sh"
   become: true
   ansible.builtin.shell: "/tmp/lxd_forward.sh"
-  when: place_forward_yml.rc == 0
+  when: place_forward_yml is succeeded
   changed_when: false
