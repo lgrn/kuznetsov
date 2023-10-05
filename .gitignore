@@ -19,3 +19,7 @@ ssh_config
 # environment-specific files created by the user, see .example files
 hosts.yml
 main.yml
+
+# encrypted secrets
+vault.yml
+password
