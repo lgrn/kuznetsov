@@ -75,10 +75,10 @@ even have to run `zfs create` first, who knows.
 
 ## How to: Kuznetsov configuration
 
-* Set up `hosts.yml` to correctly refer to:
-  * Prepared LXD host(s) and their ZFS datasets
-  * Containers and their parents (hosts)
-* Assign roles to groups of hosts in `main.yml` as necessary
+- Set up `hosts.yml` to correctly refer to:
+  - Prepared LXD host(s) and their ZFS datasets
+  - Containers and their parents (hosts)
+- Assign roles to groups of hosts in `main.yml` as necessary
 
 To assist with understanding the expected syntax and values in these
 files, you are provided with `.example` files for both.
