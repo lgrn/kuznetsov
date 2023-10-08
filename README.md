@@ -93,6 +93,57 @@ files, you are provided with `.example` files for both.
 - Run `ansible-playbook main.yml` (possibly with `--check` first) to
   target anything in `hosts.yml` with role mappings as defined in `main.yml`
 
+## Ansible vault
+
+Any roles that depend on sensitive data, like passwords or private keys,
+**MUST** store these variables in Ansible Vault. No vault is included by
+default for obvious reasons, but this section describes how a vault is
+created and modified.
+
+### Vault operations
+
+See also: `ansible-vault --help`
+
+**NOTE**: Vault files are edited with your default editor. If you want
+to change it to nano for example, add `export EDITOR=nano` to
+`~/.bashrc`
+
+Creating a new vault:
+
+```sh
+ansible-vault create vault.yml
+```
+
+Replace `create` with `view` and `edit` respectively to view or edit the
+encrypted yml file.
+
+#### Including encrypted values when running playbooks
+
+First, choose how to provide the password:
+
+* `--ask-vault-pass` will prompt you interactively for the password.
+* `--vault-password-file` can point to a file containing the password. This configuration will look in a file called `password`, so if that exists this flag is unnecessary.
+
+If a password is provided, via the `password` file for example, you can simply pass `-e` (EXTRA_VARS) to `ansible-playbook` using the `@` syntax to indicate a file (the vault), and it will be decrypted:
+
+```sh
+ansible-playbook main.yml -e @vault.yml
+```
+
+## Roles available
+
+Each role **MUST** document the following:
+
+* Fill out table values below
+* If dependent on vault values (secrets): `roles/foo/vault.yml.example`
+
+| Role        | Secrets | Purpose (brief)                         |
+| ----------- | ------- | --------------------------------------- |
+| `localhost` | no      | initial creation of **local** yml files |
+| `lxd_host`  | no      | lxd initialization                      |
+| `postgres`  | yes     | initialize and config db server         |
+
+
 ## Technical Description
 
 - `ansible.cfg` tells Ansible to use `hosts.yml` as inventory and
