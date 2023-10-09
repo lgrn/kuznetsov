@@ -75,10 +75,10 @@ even have to run `zfs create` first, who knows.
 
 ## How to: Kuznetsov configuration
 
-* Set up `hosts.yml` to correctly refer to:
-  * Prepared LXD host(s) and their ZFS datasets
-  * Containers and their parents (hosts)
-* Assign roles to groups of hosts in `main.yml` as necessary
+- Set up `hosts.yml` to correctly refer to:
+  - Prepared LXD host(s) and their ZFS datasets
+  - Containers and their parents (hosts)
+- Assign roles to groups of hosts in `main.yml` as necessary
 
 To assist with understanding the expected syntax and values in these
 files, you are provided with `.example` files for both.
@@ -121,8 +121,8 @@ encrypted yml file.
 
 First, choose how to provide the password:
 
-* `--ask-vault-pass` will prompt you interactively for the password.
-* `--vault-password-file` can point to a file containing the password. This configuration will look in a file called `password`, so if that exists this flag is unnecessary.
+- `--ask-vault-pass` will prompt you interactively for the password.
+- `--vault-password-file` can point to a file containing the password. This configuration will look in a file called `password`, so if that exists this flag is unnecessary.
 
 If a password is provided, via the `password` file for example, you can simply pass `-e` (EXTRA_VARS) to `ansible-playbook` using the `@` syntax to indicate a file (the vault), and it will be decrypted:
 
@@ -134,15 +134,14 @@ ansible-playbook main.yml -e @vault.yml
 
 Each role **MUST** document the following:
 
-* Fill out table values below
-* If dependent on vault values (secrets): `roles/foo/vault.yml.example`
+- Fill out table values below
+- If dependent on vault values (secrets): `roles/foo/vault.yml.example`
 
 | Role        | Secrets | Purpose (brief)                         |
 | ----------- | ------- | --------------------------------------- |
 | `localhost` | no      | initial creation of **local** yml files |
 | `lxd_host`  | no      | lxd initialization                      |
 | `postgres`  | yes     | initialize and config db server         |
-
 
 ## Technical Description
 
