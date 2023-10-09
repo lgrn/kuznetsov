@@ -23,16 +23,26 @@
 
 # - meta: end_play
 
-# install necessary apt packages for lxd hosting
+- name: "Validate and configure incus repo GPG keys"
+  block:
+    - name: zabbly.asc
+      ansible.builtin.get_url:
+        url: https://pkgs.zabbly.com/key.asc
+        dest: /etc/apt/keyrings/zabbly.asc
+        checksum: sha256:6b0ca4f477a86bc059b4c370d210e2fa1a18580f9b56dd6c1f1d39aca738a9dc
+
+    - name: set up repo
+      ansible.builtin.apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/zabbly.asc] https://pkgs.zabbly.com/incus/stable {{ ansible_distribution_release }} stable"
+        filename: "zabbly-incus-stable.sources"
+        state: present
+
+# install necessary apt packages
 - name: "Install APT packages on host"
   ansible.builtin.apt:
     name:
-      - "snapd"
+      - "incus"
       - "zfsutils-linux"
-# install lxd
-- name: "Install LXD as a snap"
-  community.general.snap:
-    name: "lxd"
 
 # place forward.yml remotely to be used by lxd_network_init
 #- name: "Place forward.yml"
@@ -42,8 +52,6 @@
 #    owner: "root"
 #    group: "root"
 #    mode: "0444"
-
-
 
 # include_vars can't take remote files, there has to be a better way
 # TODO this
@@ -88,6 +96,16 @@
   when: "lxd_initialized.rc != 0"
   register: lxd_init_script
   changed_when: lxd_init_script.rc == 0
+
+- name: "Loop: STRICT_MODE: Deleting unknown containers"
+  register: "deleted_container"
+  with_items: "{{ groups['lxd_containers'] }}"
+  community.general.lxd_container:
+    name: "{{ item }}"
+    state: "absent"
+  when: "(item not in groups['lxd_containers']) and strict_mode"
+  async: 60
+  poll: 15
 
 - name: "Loop: Create containers"
   register: "created_container"
