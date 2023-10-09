@@ -1,0 +1,97 @@
+---
+# this block adds your local machine as an Ansible host. this is
+# required to do some preparatory work, like generating a local
+# ssh_config file. for more information on exactly what happens, see the
+# "localhost" role which is applied to this host in main.yml
+
+local:
+  hosts:
+    localhost:
+      gather_facts: false
+      ansible_connection: "local"
+
+# this block defines your hosts. these should be vms or physical
+# machines running ubuntu with a prepared zfs dataset.
+
+lxd_hosts:
+  hosts:
+    kuznetsov:
+      gather_facts: false
+      # this is the IP that Ansible should use to connect to the host
+      # over SSH. this also goes into ssh_config.
+      ansible_host: "1.2.3.4"
+      # 'listen_ip' indicates the ip used when forwarding packets. this
+      # may be identical to ansible_host or it may be different. a good
+      # rule of thumb is that if the ansible_host ip shows up when you
+      # run 'ip a', listen_ip will be identical.
+      listen_ip: "10.11.8.224"
+      # 'internal_ip' can be whatever you want it to be, it refers to
+      # the internal network used. it should be the first ip in a CIDR
+      # range. examples:
+      # '10.13.37.1/24' = 10.13.37.0 - 10.13.37.255 (256 ips)
+      # '10.0.0.0/8'    = 10.0.0.0 - 10.255.255.255 (16 777 216 ips)
+      # see also: https://mxtoolbox.com/SubnetCalculator.aspx
+      internal_ip: "10.13.37.1/24"
+      ansible_port: "22"
+      ansible_user: "ubuntu"
+      # the system must be prepared to accept connections for
+      # ansible_user with this key
+      ansible_ssh_private_key_file: "~/.ssh/id_ed25519"
+      # this is the name of the already existing zfs dataset, as shown
+      # when running zfs list
+      zfs_pool: "tank/lxd"
+      # DANGER: if 'strict_mode' is true, the list of containers below
+      # is considered an absolut source of truth, and any containers
+      # already on the system not mentioned here will be deleted.
+      strict_mode: true
+
+# this block defines your containers. the 'parent' value of each
+# container decides which host it should be on, matching the name of an
+# object above exactly. unlike hosts, containers are initialized with
+# cloud-init, and can therefore be bootstrapped with certain settings.
+
+lxd_containers:
+  hosts:
+    mysql:
+      gather_facts: false
+      parent: "kuznetsov"
+      timezone: "Europe/Stockholm"
+      # NOTE: check your package names. if any of these packages do not
+      # exist, the entire package installation step will fail.
+      packages: ['plocate', 'ssh', 'mysql-server', 'htop']
+      # the profile to apply to the system.
+      # TODO: create more profiles, like one for a larger root disk
+      profiles: "default"
+      # alias: the name of the os image to use. for a full list, see:
+      # https://us.lxd.images.canonical.com/ 
+      # examples: "alpine/3.18/cloud", "rockylinux/9/cloud"
+      # NOTE: if you don't select a 'cloud' image, anything depending on
+      # cloud-init will break (network, package installs etc)
+      alias: "ubuntu/jammy/cloud"
+      # the static internal ip of the container. this must be within the
+      # internal_ip range of the host, and unused.
+      ip: "10.13.37.10/24"
+      # 'ports' tells the host that this container should have a
+      # 'listen_port' on the host forwarded to 'target_port' on the
+      # container.
+      ports:
+        - service: "mysql"
+          protocol: tcp
+          listen_port: "3306"
+          target_port: "3306"
+      # DNS server to use. 
+      # TODO: support multiple (new netplan syntax)
+      dns: "1.1.1.1"
+      # cpu: limits.cpu value (amount of cores, pinned)
+      cpu: 4
+      # mem: limits.memory for the container (ram available)
+      mem: "4GB"
+      # mem limit enforcement. use 'hard' to set this exact value, or
+      # 'soft' to allow a higher usage if ram is available. when ram
+      # runs out, containers will be forced down under their soft limit
+      mem_enforce: "soft"
+      # list of authorized keys that can ssh into the system as the
+      # default user (like 'ubuntu')
+      authorized_keys:
+        - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOqS6wj7my4ayCttn1woZFqavmI2ELJVqdQksYB25/Ag linus@agren.cc"
+        - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINSki+Juy0QywKsyNNyc1O/KwYFPDgT14GYGQYttcuIR linus.agren@bahnhof.net"

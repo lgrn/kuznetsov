@@ -1,0 +1,29 @@
+---
+# apply role 'localhost' to the local machine. this will create some
+# files needed to proceed:
+#
+# - cloudconfig.yml containing user-data and network-config for *all*
+#   containers, passed in upon creation
+#
+# - ssh_config which is then loaded by ansible to understand how to
+#   reach all nodes. containers are, for example, reached by jumping to
+#   the host first.
+#
+
+- name: "Create initial files locally"
+  hosts: localhost
+  roles: ['localhost']
+
+# apply role 'lxd_host' to group lxd_hosts. this ensures LXD is
+# installed and bootstrapped, and ensures all containers referring to
+# the host as 'parent' are created.
+
+# DANGER: if strict_mode is enabled on the host object, any containers
+# not found in configuration will be DELETED.
+
+- name: "Set up hosts and containers"
+  hosts: "lxd_hosts"
+  become: true
+  vars_files:
+    - cloudconfig.yml # created by ansible
+  roles: ['lxd_host']
